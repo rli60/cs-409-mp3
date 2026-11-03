@@ -7,6 +7,7 @@ module.exports = function (router) {
         // Get all tasks
         try {
             const tasks = await Task.find()
+
             res.status(200).json({
                 message: "Task retrieved successfully.",
                 data: tasks
@@ -25,7 +26,7 @@ module.exports = function (router) {
         // Create task
         try {
             const task = new Task(req.body) // creates new Task
-            const savedTask = await task.save()
+            const savedTask = await task.save() // saves new Task
 
             res.status(201).json({
                 message: "Task successfully created.",
@@ -33,27 +34,35 @@ module.exports = function (router) {
             })
         }
         catch (err) {
+            // Invalid input
+            if (err.name === 'ValidationError' || err.name === 'CastError') {
+                return res.status(400).json({
+                    message: "Invalid task data.",
+                    data: null
+                });
+            }
+
             res.status(500).json({
-                message: "Error creating tasks.",
+                message: "Error creating task.",
                 data: null
             })
         }
     });
 
-    // GET /api/tasks/:id
-    router.get('/:id', function (req, res) {
-        // Get specific task
-    });
+    // // GET /api/tasks/:id
+    // router.get('/:id', function (req, res) {
+    //     // Get specific task
+    // });
 
-    // PUT /api/tasks/:id
-    router.put('/:id', function (req, res) {
-        // Update task
-    });
+    // // PUT /api/tasks/:id
+    // router.put('/:id', function (req, res) {
+    //     // Update task
+    // });
 
-    // DELETE /api/tasks/:id
-    router.delete('/:id', function (req, res) {
-        // Delete task
-    });
+    // // DELETE /api/tasks/:id
+    // router.delete('/:id', function (req, res) {
+    //     // Delete task
+    // });
 
     return router;
 };
