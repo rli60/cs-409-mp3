@@ -1,0 +1,59 @@
+// Handle /tasks and /tasks/:id
+const Task = require('../models/task');
+
+module.exports = function (router) {
+    // GET /api/tasks
+    router.get('/', async function (req, res) {
+        // Get all tasks
+        try {
+            const tasks = await Task.find()
+            res.status(200).json({
+                message: "Task retrieved successfully.",
+                data: tasks
+            })
+        }
+        catch (err) {
+            res.status(500).json({
+                message: "Error retrieving tasks.",
+                data: null
+            })
+        }
+    });
+
+    // POST /api/tasks
+    router.post('/', async function (req, res) {
+        // Create task
+        try {
+            const task = new Task(req.body) // creates new Task
+            const savedTask = await task.save()
+
+            res.status(201).json({
+                message: "Task successfully created.",
+                data: savedTask
+            })
+        }
+        catch (err) {
+            res.status(500).json({
+                message: "Error creating tasks.",
+                data: null
+            })
+        }
+    });
+
+    // GET /api/tasks/:id
+    router.get('/:id', function (req, res) {
+        // Get specific task
+    });
+
+    // PUT /api/tasks/:id
+    router.put('/:id', function (req, res) {
+        // Update task
+    });
+
+    // DELETE /api/tasks/:id
+    router.delete('/:id', function (req, res) {
+        // Delete task
+    });
+
+    return router;
+};

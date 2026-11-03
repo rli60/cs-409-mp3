@@ -1,3 +1,4 @@
+// Handles the root/home endpoint
 module.exports = function (router) {
 
     var homeRoute = router.route('/');
