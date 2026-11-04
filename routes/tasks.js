@@ -49,10 +49,38 @@ module.exports = function (router) {
         }
     });
 
-    // // GET /api/tasks/:id
-    // router.get('/:id', function (req, res) {
-    //     // Get specific task
-    // });
+    // GET /api/tasks/:id
+    router.get('/:id', async function (req, res) {
+        // Get specific task
+        try {
+            const task = await Task.findById(req.params.id)
+
+            if (!task) {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                })
+            }
+
+            res.status(200).json({
+                message: "Task retrieved successfully.",
+                data: task
+            })
+        }
+        catch (err) {
+            if (err.name === 'CastError') {
+                return res.status(404).json({
+                    message: "Invalid task.",
+                    data: null
+                })
+            }
+        
+            res.status(500).json({
+                message: "Error retrieving task.",
+                data: null
+            })
+        }
+    });
 
     // // PUT /api/tasks/:id
     // router.put('/:id', function (req, res) {

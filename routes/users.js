@@ -56,10 +56,38 @@ module.exports = function (router) {
         }
     });
 
-    // // GET /api/users/:id
-    // router.get('/:id', function (req, res) {
-    //     // Get specific user
-    // });
+    // GET /api/users/:id
+    router.get('/:id', async function (req, res) {
+        // Get specific user
+        try {
+            const user = await User.findById(req.params.id)
+
+            if (!user) {
+                return res.status(404).json({
+                    message: "User does not exist.",
+                    data: null
+                })
+            }
+
+            res.status(200).json({
+                message: "User retrieved successfully.",
+                data: user
+            })
+        }
+        catch (err) {
+            if (err.name === 'CastError') {
+                return res.status(404).json({
+                    message: "Invalid user.",
+                    data: null
+                })
+            }
+        
+            res.status(500).json({
+                message: "Error retrieving user.",
+                data: null
+            })
+        }
+    });
 
     // // PUT /api/users/:id
     // router.put('/:id', function (req, res) {
