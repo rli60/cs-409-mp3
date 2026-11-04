@@ -53,7 +53,13 @@ module.exports = function (router) {
     router.get('/:id', async function (req, res) {
         // Get specific task
         try {
-            const task = await Task.findById(req.params.id)
+            let query = Task.findById(req.params.id);
+
+            if (req.query.select) {
+                query = query.select(req.query.select.replace(/,/g, ' '));
+            }
+
+            const task = await query;
 
             if (!task) {
                 return res.status(404).json({

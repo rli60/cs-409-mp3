@@ -60,7 +60,13 @@ module.exports = function (router) {
     router.get('/:id', async function (req, res) {
         // Get specific user
         try {
-            const user = await User.findById(req.params.id)
+            let query = User.findById(req.params.id);
+
+            if (req.query.select) {
+                query = query.select(req.query.select.replace(/,/g, ' '));
+            }
+
+            const user = await query;
 
             if (!user) {
                 return res.status(404).json({
