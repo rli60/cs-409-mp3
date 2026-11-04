@@ -63,7 +63,8 @@ module.exports = function (router) {
             let query = User.findById(req.params.id);
 
             if (req.query.select) {
-                query = query.select(req.query.select.replace(/,/g, ' '));
+                const selectFields = JSON.parse(req.query.select);
+                query = query.select(selectFields);
             }
 
             const user = await query;
@@ -86,6 +87,13 @@ module.exports = function (router) {
                     message: "Invalid user.",
                     data: null
                 })
+            }
+
+            if (err instanceof SyntaxError) {
+                return res.status(400).json({
+                    message: "Invalid select query.",
+                    data: null
+                });
             }
         
             res.status(500).json({
