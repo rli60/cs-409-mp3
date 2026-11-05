@@ -62,7 +62,7 @@ module.exports = function (router) {
     router.get('/:id', async function (req, res) {
         // Get specific user
         try {
-            const query = User.findById(req.params.id);
+            let query = User.findById(req.params.id);
 
             if (req.query.select) {
                 const selectFields = JSON.parse(req.query.select);
@@ -271,10 +271,46 @@ module.exports = function (router) {
         }
     });
 
-    // // DELETE /api/users/:id
-    // router.delete('/:id', function (req, res) {
-    //     // Delete user
-    // });
+    // DELETE /api/users/:id
+    router.delete('/:id', async function (req, res) {
+        // Delete user
+        try {
+            const user = await User.findById(req.params.id);
+            
+            if (!user) {
+                return res.status(404).json({
+                    message: "User does not exist.",
+                    data: null
+                })
+            }
+
+            // Unassign all tasks belonging to this user
+            await Task.updateMany(
+                { assignedUser: user._id.toString() },
+                {
+                    assignedUser: "",
+                    assignedUserName: "unassigned"
+                }
+            );
+            
+            await User.findByIdAndDelete(req.params.id);
+            
+            return res.status(204).send();
+        }
+        catch (err) {
+            if (err.name == 'CastError' && err.path == '_id') {
+                return res.status(404).json({
+                    message: "User does not exist.",
+                    data: null
+                });
+            }
+
+            res.status(500).json({
+                message: "Error deleting user.",
+                data: null
+            });
+        }
+    });
 
     return router;
 };
