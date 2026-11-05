@@ -77,7 +77,7 @@ module.exports = function (router) {
             })
         }
         catch (err) {
-            if (err.name === 'CastError') {
+            if (err.name == 'CastError') {
                 return res.status(404).json({
                     message: "Invalid task.",
                     data: null
@@ -101,37 +101,37 @@ module.exports = function (router) {
     // PUT /api/tasks/:id
     router.put('/:id', async function (req, res) {
         try {
-            const task = await Task.findById(req.params.id);
+            const task = await Task.findById(req.params.id)
 
             if (!task) {
                 return res.status(404).json({
                     message: "Task does not exist.",
                     data: null
-                });
+                })
             }
 
-            const oldAssignedUser = task.assignedUser;
-            const newTask = new Task(req.body);
-            let assignedUser = null;
+            const oldAssignedUser = task.assignedUser
+            const newTask = new Task(req.body)
+            let assignedUser = null
 
             if (newTask.assignedUser == "") {
-                newTask.assignedUserName = "unassigned";
+                newTask.assignedUserName = "unassigned"
             }
             else {
                 if (!mongoose.Types.ObjectId.isValid(newTask.assignedUser)) {
                     return res.status(400).json({
                         message: "Invalid assigned user ID.",
                         data: null
-                    });
+                    })
                 }
 
-                assignedUser = await User.findById(newTask.assignedUser);
+                assignedUser = await User.findById(newTask.assignedUser)
 
                 if (!assignedUser) {
                     return res.status(404).json({
                         message: "Assigned user does not exist.",
                         data: null
-                    });
+                    })
                 }
 
                 if (
@@ -141,19 +141,19 @@ module.exports = function (router) {
                     return res.status(400).json({
                         message: "Assigned username does not match the user.",
                         data: null
-                    });
+                    })
                 }
 
-                newTask.assignedUserName = assignedUser.name;
+                newTask.assignedUserName = assignedUser.name
             }
 
             // Replace task fields while preserving original ID and date
-            task.name = newTask.name;
-            task.description = newTask.description;
-            task.deadline = newTask.deadline;
-            task.completed = newTask.completed;
-            task.assignedUser = newTask.assignedUser;
-            task.assignedUserName = newTask.assignedUserName;
+            task.name = newTask.name
+            task.description = newTask.description
+            task.deadline = newTask.deadline
+            task.completed = newTask.completed
+            task.assignedUser = newTask.assignedUser
+            task.assignedUserName = newTask.assignedUserName
 
             const savedTask = await task.save();
 
@@ -163,7 +163,7 @@ module.exports = function (router) {
                     $pull: {
                         pendingTasks: task._id.toString()
                     }
-                });
+                })
             }
 
             // Add task to the new user's pendingTasks
@@ -172,23 +172,23 @@ module.exports = function (router) {
                     $addToSet: {
                         pendingTasks: task._id.toString()
                     }
-                });
+                })
             }
 
             res.status(200).json({
                 message: "Task successfully updated.",
                 data: savedTask
-            });
+            })
         }
         catch (err) {
-            if (err.name === 'CastError' && err.path === '_id') {
+            if (err.name == 'CastError' && err.path == '_id') {
                 return res.status(404).json({
                     message: "Task does not exist.",
                     data: null
                 });
             }
 
-            if (err.name === 'ValidationError' || err.name === 'CastError') {
+            if (err.name == 'ValidationError' || err.name == 'CastError') {
                 return res.status(400).json({
                     message: "Invalid task data.",
                     data: null
@@ -202,10 +202,53 @@ module.exports = function (router) {
         }
     });
 
-    // // DELETE /api/tasks/:id
-    // router.delete('/:id', function (req, res) {
-    //     // Delete task
-    // });
+    // DELETE /api/tasks/:id
+    router.delete('/:id', async function (req, res) {
+        // Delete task
+        try {
+            const task = await Task.findById(req.params.id);
+
+            if (!task) {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                })
+            }
+
+            if (task.assignedUser != "") {
+                // Remove task id from user's pending task
+                await User.findByIdAndUpdate(task.assignedUser, {
+                    $pull: {
+                        pendingTasks: task._id.toString()
+                    }
+                });
+            }
+
+            await Task.findByIdAndDelete(req.params.id);
+
+            return res.status(204).send();
+        }
+        catch (err) {
+            if (err.name == 'CastError' && err.path == '_id') {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                });
+            }
+
+            // if (err.name === 'ValidationError' || err.name === 'CastError') {
+            //     return res.status(400).json({
+            //         message: "Invalid task data.",
+            //         data: null
+            //     });
+            // }
+
+            res.status(500).json({
+                message: "Error deleting task.",
+                data: null
+            });
+        }
+    });
 
     return router;
 };
