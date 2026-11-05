@@ -6,20 +6,72 @@ const mongoose = require('mongoose');
 module.exports = function (router) {
     // GET /api/tasks
     router.get('/', async function (req, res) {
-        // Get all tasks
         try {
-            const tasks = await Task.find()
+            let where = {};
 
-            res.status(200).json({
-                message: "Task retrieved successfully.",
+            // where
+            if (req.query.where) {
+                where = JSON.parse(req.query.where);
+            }
+
+            // count
+            if (req.query.count == 'true') {
+                const count = await Task.countDocuments(where);
+
+                return res.status(200).json({
+                    message: "Tasks retrieved successfully.",
+                    data: count
+                });
+            }
+
+            // Create query
+            let query = Task.find(where);
+
+            // sort
+            if (req.query.sort) {
+                const sort = JSON.parse(req.query.sort);
+                query = query.sort(sort);
+            }
+
+            // select
+            if (req.query.select) {
+                const selectFields = JSON.parse(req.query.select);
+                query = query.select(selectFields);
+            }
+
+            // skip
+            if (req.query.skip != undefined) {
+                const skip = parseInt(req.query.skip);
+                query = query.skip(skip);
+            }
+
+            // limit (default 100)
+            const limit = req.query.limit != undefined
+                ? parseInt(req.query.limit)
+                : 100;
+
+            query = query.limit(limit);
+
+            const tasks = await query;
+
+            return res.status(200).json({
+                message: "Tasks retrieved successfully.",
                 data: tasks
-            })
-        }
+            });
+
+        } 
         catch (err) {
-            res.status(500).json({
+            if (err instanceof SyntaxError) {
+                return res.status(400).json({
+                    message: "Invalid query parameter.",
+                    data: null
+                });
+            }
+
+            return res.status(500).json({
                 message: "Error retrieving tasks.",
                 data: null
-            })
+            });
         }
     });
 

@@ -15,7 +15,7 @@ module.exports = function (router) {
             }
 
             // count
-            if (req.query.count === 'true') {
+            if (req.query.count == 'true') {
                 const count = await User.countDocuments(where);
 
                 return res.status(200).json({
@@ -40,13 +40,13 @@ module.exports = function (router) {
             }
 
             // skip
-            if (req.query.skip !== undefined) {
+            if (req.query.skip != undefined) {
                 const skip = parseInt(req.query.skip);
                 query = query.skip(skip);
             }
 
             // limit
-            if (req.query.limit !== undefined) {
+            if (req.query.limit != undefined) {
                 const limit = parseInt(req.query.limit);
                 query = query.limit(limit);
             }
