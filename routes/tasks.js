@@ -1,5 +1,7 @@
 // Handle /tasks and /tasks/:id
 const Task = require('../models/task');
+const User = require('../models/user');
+const mongoose = require('mongoose');
 
 module.exports = function (router) {
     // GET /api/tasks
@@ -96,10 +98,109 @@ module.exports = function (router) {
         }
     });
 
-    // // PUT /api/tasks/:id
-    // router.put('/:id', function (req, res) {
-    //     // Update task
-    // });
+    // PUT /api/tasks/:id
+    router.put('/:id', async function (req, res) {
+        try {
+            const task = await Task.findById(req.params.id);
+
+            if (!task) {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                });
+            }
+
+            const oldAssignedUser = task.assignedUser;
+            const newTask = new Task(req.body);
+            let assignedUser = null;
+
+            if (newTask.assignedUser == "") {
+                newTask.assignedUserName = "unassigned";
+            }
+            else {
+                if (!mongoose.Types.ObjectId.isValid(newTask.assignedUser)) {
+                    return res.status(400).json({
+                        message: "Invalid assigned user ID.",
+                        data: null
+                    });
+                }
+
+                assignedUser = await User.findById(newTask.assignedUser);
+
+                if (!assignedUser) {
+                    return res.status(404).json({
+                        message: "Assigned user does not exist.",
+                        data: null
+                    });
+                }
+
+                if (
+                    req.body.assignedUserName != undefined &&
+                    req.body.assignedUserName != assignedUser.name
+                ) {
+                    return res.status(400).json({
+                        message: "Assigned username does not match the user.",
+                        data: null
+                    });
+                }
+
+                newTask.assignedUserName = assignedUser.name;
+            }
+
+            // Replace task fields while preserving original ID and date
+            task.name = newTask.name;
+            task.description = newTask.description;
+            task.deadline = newTask.deadline;
+            task.completed = newTask.completed;
+            task.assignedUser = newTask.assignedUser;
+            task.assignedUserName = newTask.assignedUserName;
+
+            const savedTask = await task.save();
+
+            // Remove task from the previous user's pendingTasks
+            if (oldAssignedUser != "") {
+                await User.findByIdAndUpdate(oldAssignedUser, {
+                    $pull: {
+                        pendingTasks: task._id.toString()
+                    }
+                });
+            }
+
+            // Add task to the new user's pendingTasks
+            if (newTask.assignedUser != "" && newTask.completed == false) {
+                await User.findByIdAndUpdate(newTask.assignedUser, {
+                    $addToSet: {
+                        pendingTasks: task._id.toString()
+                    }
+                });
+            }
+
+            res.status(200).json({
+                message: "Task successfully updated.",
+                data: savedTask
+            });
+        }
+        catch (err) {
+            if (err.name === 'CastError' && err.path === '_id') {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                });
+            }
+
+            if (err.name === 'ValidationError' || err.name === 'CastError') {
+                return res.status(400).json({
+                    message: "Invalid task data.",
+                    data: null
+                });
+            }
+
+            res.status(500).json({
+                message: "Error updating task.",
+                data: null
+            });
+        }
+    });
 
     // // DELETE /api/tasks/:id
     // router.delete('/:id', function (req, res) {
