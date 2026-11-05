@@ -6,20 +6,71 @@ const mongoose = require('mongoose')
 module.exports = function (router) {
     // GET /api/users
     router.get('/', async function (req, res) {
-        // Get all users
         try {
-            const users = await User.find()
+            let where = {};
 
-            res.status(200).json({
+            // where
+            if (req.query.where) {
+                where = JSON.parse(req.query.where);
+            }
+
+            // count
+            if (req.query.count === 'true') {
+                const count = await User.countDocuments(where);
+
+                return res.status(200).json({
+                    message: "Users retrieved successfully.",
+                    data: count
+                });
+            }
+
+            // Create query
+            let query = User.find(where);
+
+            // sort
+            if (req.query.sort) {
+                const sort = JSON.parse(req.query.sort);
+                query = query.sort(sort);
+            }
+
+            // select
+            if (req.query.select) {
+                const selectFields = JSON.parse(req.query.select);
+                query = query.select(selectFields);
+            }
+
+            // skip
+            if (req.query.skip !== undefined) {
+                const skip = parseInt(req.query.skip);
+                query = query.skip(skip);
+            }
+
+            // limit
+            if (req.query.limit !== undefined) {
+                const limit = parseInt(req.query.limit);
+                query = query.limit(limit);
+            }
+
+            const users = await query;
+
+            return res.status(200).json({
                 message: "Users retrieved successfully.",
                 data: users
-            })
-        }
+            });
+
+        } 
         catch (err) {
-            res.status(500).json({
+            if (err instanceof SyntaxError) {
+                return res.status(400).json({
+                    message: "Invalid query parameter.",
+                    data: null
+                });
+            }
+
+            return res.status(500).json({
                 message: "Error retrieving users.",
                 data: null
-            })
+            });
         }
     });
 
@@ -64,6 +115,7 @@ module.exports = function (router) {
         try {
             let query = User.findById(req.params.id);
 
+            // select 
             if (req.query.select) {
                 const selectFields = JSON.parse(req.query.select);
                 query = query.select(selectFields);
