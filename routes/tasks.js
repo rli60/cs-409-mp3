@@ -236,13 +236,6 @@ module.exports = function (router) {
                 });
             }
 
-            // if (err.name === 'ValidationError' || err.name === 'CastError') {
-            //     return res.status(400).json({
-            //         message: "Invalid task data.",
-            //         data: null
-            //     });
-            // }
-
             res.status(500).json({
                 message: "Error deleting task.",
                 data: null
