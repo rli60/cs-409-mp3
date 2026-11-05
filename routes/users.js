@@ -107,67 +107,167 @@ module.exports = function (router) {
 
     // PUT /api/users/:id
     router.put('/:id', async function (req, res) {
-        // Update user
         try {
-            const query = User.findById(req.params.id);
-            const user = await query;
+            // Find existing user
+            const user = await User.findById(req.params.id);
 
             if (!user) {
                 return res.status(404).json({
                     message: "User does not exist.",
                     data: null
-                })
+                });
             }
 
+            // Create new user from request body
             const newUser = new User(req.body);
-            newUser.dateCreated = user.dateCreated;
+            const newTasks = newUser.pendingTasks.map(id => id.toString());
+
+            // Validate pendingTasks is an array
+            if (
+                req.body.pendingTasks !== undefined &&
+                !Array.isArray(req.body.pendingTasks)
+            ) {
+                return res.status(400).json({
+                    message: "pendingTasks must be an array.",
+                    data: null
+                });
+            }
+
+            // Validate task ID formats
+            for (const id of newTasks) {
+                if (!mongoose.Types.ObjectId.isValid(id)) {
+                    return res.status(400).json({
+                        message: "Invalid task ID.",
+                        data: null
+                    });
+                }
+            }
+
+            // Prevent duplicate task IDs
+            if (new Set(newTasks).size !== newTasks.length) {
+                return res.status(400).json({
+                    message: "Duplicate task IDs are not allowed.",
+                    data: null
+                });
+            }
+
+            // Validate user fields
+            await newUser.validate();
+
+            // Check for duplicate email
+            const duplicate = await User.findOne({
+                email: newUser.email,
+                _id: { $ne: user._id }
+            });
+
+            if (duplicate) {
+                return res.status(400).json({
+                    message: "Email already exists.",
+                    data: null
+                });
+            }
+
+            // Find and validate requested tasks
+            const tasks = await Task.find({
+                _id: { $in: newTasks }
+            });
+
+            if (tasks.length !== newTasks.length) {
+                return res.status(404).json({
+                    message: "Task does not exist.",
+                    data: null
+                });
+            }
+
+            // Pending tasks cannot be completed
+            if (tasks.some(task => task.completed)) {
+                return res.status(400).json({
+                    message: "Cannot add completed tasks.",
+                    data: null
+                });
+            }
+
+            // Compare old and new pendingTasks
+            const oldTasks = user.pendingTasks.map(id => id.toString());
+
+            // Unassign tasks removed from the user's list
+            for (const id of oldTasks) {
+                if (!newTasks.includes(id)) {
+                    await Task.findOneAndUpdate(
+                        {
+                            _id: id,
+                            assignedUser: user._id.toString()
+                        },
+                        {
+                            assignedUser: "",
+                            assignedUserName: "unassigned"
+                        }
+                    );
+                }
+            }
+
+            // Assign newly added tasks to this user
+            for (const task of tasks) {
+                if (!oldTasks.includes(task._id.toString())) {
+
+                    // Remove task from its previous user's pendingTasks
+                    if (task.assignedUser !== "") {
+                        await User.findByIdAndUpdate(task.assignedUser, {
+                            $pull: {
+                                pendingTasks: task._id.toString()
+                            }
+                        });
+                    }
+
+                    task.assignedUser = user._id.toString();
+                    task.assignedUserName = newUser.name;
+
+                    await task.save();
+                }
+            }
+
+            // Update user fields
             const oldName = user.name;
 
-            // Replace user fields while preserving original ID and date
-            user.name = newUser.name
-            user.email = newUser.email
+            user.name = newUser.name;
+            user.email = newUser.email;
+            user.pendingTasks = newTasks;
 
             const savedUser = await user.save();
 
-            // Update assigned tasks if the user's name changed
-            if (oldName != newUser.name) {
+            // Update assigned task names if user's name changed
+            if (oldName !== newUser.name) {
                 await Task.updateMany(
                     { assignedUser: user._id.toString() },
-                    { $set: { assignedUserName: newUser.name } }
+                    { assignedUserName: newUser.name }
                 );
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 message: "User successfully updated.",
                 data: savedUser
-            })
-        }
+            });
+
+        } 
         catch (err) {
-            if (err.name == 'CastError') {
+            if (err.name === 'CastError' && err.path === '_id') {
                 return res.status(404).json({
-                    message: "Invalid user.",
+                    message: "Invalid user ID.",
                     data: null
-                })
+                });
             }
 
-            if (err.name == 'ValidationError') {
+            if (err.name === 'ValidationError' || err.code === 11000) {
                 return res.status(400).json({
                     message: "Invalid user data.",
                     data: null
                 });
             }
 
-            if (err.code == 11000) {
-                return res.status(400).json({
-                    message: "Email already exists.",
-                    data: null
-                });
-            }
-        
-            res.status(500).json({
+            return res.status(500).json({
                 message: "Error updating user.",
                 data: null
-            })
+            });
         }
     });
 
